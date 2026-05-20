@@ -17,7 +17,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/maheshmt22/newrepository.git'
+                    url: 'https://github.com/maheshmt22/My-First-Repository.git'
             }
         }
 
