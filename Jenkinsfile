@@ -63,7 +63,7 @@ pipeline {
 
                         curl --fail -L -u $JFROG_USER:$JFROG_PASS \
                              -T "$WAR_FILE" \
-                             "https://trial7n02kw.jfrog.io/artifactory/java_warfile_repo-generic-local/$FILE_NAME"
+                             "https://triallb6d6m.jfrog.io/artifactory/jenkinsjava-generic-local/$FILE_NAME"
 
                         echo "Upload completed successfully!"
                     '''
