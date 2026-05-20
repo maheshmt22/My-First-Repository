@@ -1,7 +1,7 @@
 pipeline {
     agent any
 
-     tools {
+    tools {
         jdk 'jdk17'
         maven 'maven3'
     }
@@ -26,12 +26,26 @@ pipeline {
                 dir('sample-app') {
                     sh 'mvn clean package -DskipTests'
                 }
+
+                script {
+                    env.WAR_FILE = sh(
+                        script: "ls sample-app/target/*.war",
+                        returnStdout: true
+                    ).trim()
+
+                    env.WAR_NAME = sh(
+                        script: "basename ${env.WAR_FILE}",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "WAR File Path: ${env.WAR_FILE}"
+                    echo "WAR Name: ${env.WAR_NAME}"
+                }
             }
         }
 
         stage('Upload to JFrog') {
             steps {
-
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'jfrog-creds',
@@ -45,13 +59,9 @@ pipeline {
 
                         echo "Uploading WAR to JFrog..."
 
-                        WAR_FILE=$(ls sample-app/target/*.war)
                         FILE_NAME="${JOB_NAME}-${BUILD_NUMBER}-sample.war"
 
-                        echo "WAR File: $WAR_FILE"
-                        echo "Uploading as: $FILE_NAME"
-
-                        curl -L -u $JFROG_USER:$JFROG_PASS \
+                        curl --fail -L -u $JFROG_USER:$JFROG_PASS \
                              -T "$WAR_FILE" \
                              "https://trial7n02kw.jfrog.io/artifactory/java_warfile_repo-generic-local/$FILE_NAME"
 
@@ -63,43 +73,38 @@ pipeline {
 
         stage('Deploy to Tomcat') {
             steps {
-
                 sshagent(credentials: ['tomcat-ssh-key']) {
 
-                    sh '''
+                    sh """
                         set -e
-                        scp sample.war ubuntu@IP:/tmp/
-                        echo "Starting deployment to Tomcat..."
 
-                        WAR_FILE=$(ls sample-app/target/*.war)
-                        WAR_NAME=$(basename $WAR_FILE)
+                        echo "Deploying WAR: ${WAR_NAME}"
 
-                        echo "WAR File: $WAR_NAME"
-
-                        # Copy WAR to remote server
+                        echo "Copying WAR to server..."
                         scp -o StrictHostKeyChecking=no \
-                        $WAR_FILE $SERVER_USER@$SERVER_IP:/tmp/
+                            ${WAR_FILE} ${SERVER_USER}@${SERVER_IP}:/tmp/
 
-                        # Deploy application
-                        ssh -o StrictHostKeyChecking=no \
-                        $SERVER_USER@$SERVER_IP "
+                        echo "Deploying to Tomcat..."
 
-                            echo 'Stopping old deployment if exists...'
+                        ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_IP} '
+                            set -e
 
-                            sudo rm -rf $TOMCAT_DIR/sample-app*
-                            sudo mv /tmp/$WAR_NAME $TOMCAT_DIR/
+                            echo "Stopping old deployment..."
+                            sudo rm -rf ${TOMCAT_DIR}/sample-app*
 
-                            echo 'Restarting Tomcat...'
+                            echo "Deploying new WAR..."
+                            sudo mv /tmp/${WAR_NAME} ${TOMCAT_DIR}/
 
+                            echo "Restarting Tomcat..."
                             sudo systemctl restart tomcat
 
                             sleep 10
 
                             sudo systemctl status tomcat --no-pager
-                        "
+                        '
 
                         echo "Deployment completed successfully!"
-                    '''
+                    """
                 }
             }
         }
