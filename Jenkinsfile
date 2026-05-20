@@ -68,7 +68,7 @@ pipeline {
 
                     sh '''
                         set -e
-
+                        scp sample.war ubuntu@IP:/tmp/
                         echo "Starting deployment to Tomcat..."
 
                         WAR_FILE=$(ls sample-app/target/*.war)
