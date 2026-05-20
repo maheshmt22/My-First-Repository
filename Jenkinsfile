@@ -92,10 +92,10 @@ pipeline {
                         echo "Deploying WAR: ${WAR_NAME}"
 
                         scp -o StrictHostKeyChecking=no \
-                        ${WAR_FILE} ${params.SERVER_USER}@${params.SERVER_IP}:/tmp/
+                        ${WAR_FILE} ${SERVER_USER}@${params.SERVER_IP}:/tmp/
 
                         ssh -o StrictHostKeyChecking=no \
-                        ${params.SERVER_USER}@${params.SERVER_IP} '
+                        ${SERVER_USER}@${params.SERVER_IP} '
 
                             sudo rm -rf ${TOMCAT_DIR}/sample-app*
 
