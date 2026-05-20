@@ -1,6 +1,12 @@
 pipeline {
     agent any
 
+    parameters {
+    string(
+        name: 'SERVER_IP',
+        description: 'Tomcat Server IP'
+    )
+
     tools {
         jdk 'jdk17'
         maven 'maven3'
