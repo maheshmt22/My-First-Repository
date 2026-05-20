@@ -51,7 +51,7 @@ pipeline {
                         echo "WAR File: $WAR_FILE"
                         echo "Uploading as: $FILE_NAME"
 
-                        curl -u $JFROG_USER:$JFROG_PASS \
+                        curl -L -u $JFROG_USER:$JFROG_PASS \
                              -T "$WAR_FILE" \
                              "https://trial7n02kw.jfrog.io/artifactory/java_warfile_repo-generic-local/$FILE_NAME"
 
