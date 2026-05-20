@@ -15,7 +15,7 @@ public class HelloServlet extends HttpServlet {
             throws ServletException, IOException {
         resp.setContentType("text/html");
         PrintWriter out = resp.getWriter();
-        out.println("<h2>Hello from Suprith App - running on Java 17!</h2>");
+        out.println("<h2>Hello from Mahesh App - running on Java 17!</h2>");
     }
 }
 
