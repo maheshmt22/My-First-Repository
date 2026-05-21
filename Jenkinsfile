@@ -2,10 +2,18 @@ pipeline {
     agent any
 
     parameters {
-        string(
-            name: 'SERVER_IP',
-            description: 'Tomcat Server IP'
-        )
+
+        choice(
+        name: 'ENVIRONMENT',
+        choices: ['DEV', 'QA', 'PROD'],
+        description: 'Select deployment environment'
+    )
+
+        choice(
+        name: 'ENVIRONMENT',
+        choices: ['DEV', 'QA', 'PROD'],
+        description: 'Deployment Environment'
+    )
     }
 
     tools {
@@ -14,7 +22,7 @@ pipeline {
     }
 
     environment {
-		SERVER_USER = 'ubuntu'
+        SERVER_USER = 'ubuntu'
         TOMCAT_DIR = '/opt/tomcat/webapps'
     }
 
@@ -22,6 +30,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
+
                 git branch: 'main',
                     url: 'https://github.com/maheshmt22/My-First-Repository.git'
             }
@@ -89,6 +98,7 @@ pipeline {
                     sh """
                         set -e
 
+                        echo "Environment: ${params.ENVIRONMENT}"
                         echo "Deploying WAR: ${WAR_NAME}"
 
                         scp -o StrictHostKeyChecking=no \
