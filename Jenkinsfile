@@ -4,16 +4,15 @@ pipeline {
     parameters {
 
         choice(
-        name: 'ENVIRONMENT',
-        choices: ['DEV', 'QA', 'PROD'],
-        description: 'Select deployment environment'
-    )
+            name: 'ENVIRONMENT',
+            choices: ['DEV', 'QA', 'PROD'],
+            description: 'Select deployment environment'
+        )
 
-        choice(
-        name: 'ENVIRONMENT',
-        choices: ['DEV', 'QA', 'PROD'],
-        description: 'Deployment Environment'
-    )
+        string(
+            name: 'SERVER_IP',
+            description: 'Tomcat Server IP'
+        )
     }
 
     tools {
@@ -30,7 +29,6 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-
                 git branch: 'main',
                     url: 'https://github.com/maheshmt22/My-First-Repository.git'
             }
@@ -46,12 +44,16 @@ pipeline {
                 script {
 
                     env.WAR_FILE = sh(
-                        script: "ls sample-app/target/*.war",
+                        script: "find sample-app/target -name '*.war' | head -n 1",
                         returnStdout: true
                     ).trim()
 
+                    if (!env.WAR_FILE) {
+                        error "WAR file not found!"
+                    }
+
                     env.WAR_NAME = sh(
-                        script: "basename ${env.WAR_FILE}",
+                        script: "basename \"${env.WAR_FILE}\"",
                         returnStdout: true
                     ).trim()
 
@@ -64,28 +66,28 @@ pipeline {
         stage('Upload to JFrog') {
             steps {
 
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'jfrog-creds',
-                        usernameVariable: 'JFROG_USER',
-                        passwordVariable: 'JFROG_PASS'
-                    )
-                ]) {
+                withCredentials([[
+                    $class: 'UsernamePasswordMultiBinding',
+                    credentialsId: 'jfrog-creds',
+                    usernameVariable: 'JFROG_USER',
+                    passwordVariable: 'JFROG_PASS'
+                ]]) {
 
-                    sh '''
+                    sh """
                         set -e
 
                         echo "Uploading WAR to JFrog..."
 
-                        FILE_NAME="${JOB_NAME}-${BUILD_NUMBER}-sample.war"
+                        SAFE_JOB_NAME=\$(echo "${JOB_NAME}" | tr '/' '_')
+                        FILE_NAME="\${SAFE_JOB_NAME}-${BUILD_NUMBER}-${ENVIRONMENT}.war"
 
                         curl --fail -L \
-                             -u $JFROG_USER:$JFROG_PASS \
-                             -T "$WAR_FILE" \
-                             "https://triallb6d6m.jfrog.io/artifactory/jenkinsjava-generic-local/$FILE_NAME"
+                            -u $JFROG_USER:$JFROG_PASS \
+                            -T "${WAR_FILE}" \
+                            "https://triallb6d6m.jfrog.io/artifactory/jenkinsjava-generic-local/\$FILE_NAME"
 
                         echo "Upload completed successfully!"
-                    '''
+                    """
                 }
             }
         }
@@ -98,25 +100,33 @@ pipeline {
                     sh """
                         set -e
 
-                        echo "Environment: ${params.ENVIRONMENT}"
+                        echo "Environment: ${ENVIRONMENT}"
                         echo "Deploying WAR: ${WAR_NAME}"
 
                         scp -o StrictHostKeyChecking=no \
-                        ${WAR_FILE} ${SERVER_USER}@${params.SERVER_IP}:/tmp/
+                            "${WAR_FILE}" ${SERVER_USER}@${SERVER_IP}:/tmp/
 
                         ssh -o StrictHostKeyChecking=no \
-                        ${SERVER_USER}@${params.SERVER_IP} '
+                            ${SERVER_USER}@${SERVER_IP} "
+                                set -e
 
-                            sudo rm -rf ${TOMCAT_DIR}/sample-app*
+                                echo 'Stopping Tomcat safely...'
+                                sudo systemctl stop tomcat
 
-                            sudo mv /tmp/${WAR_NAME} ${TOMCAT_DIR}/
+                                echo 'Cleaning old deployment...'
+                                sudo rm -rf ${TOMCAT_DIR}/sample-app*
 
-                            sudo systemctl restart tomcat
+                                echo 'Deploying new WAR...'
+                                sudo cp /tmp/${WAR_NAME} ${TOMCAT_DIR}/sample-app.war
 
-                            sleep 10
+                                echo 'Starting Tomcat...'
+                                sudo systemctl start tomcat
 
-                            sudo systemctl status tomcat --no-pager
-                        '
+                                sleep 10
+
+                                echo 'Checking status...'
+                                sudo systemctl status tomcat --no-pager
+                            "
 
                         echo "Deployment completed successfully!"
                     """
